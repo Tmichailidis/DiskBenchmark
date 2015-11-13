@@ -1,0 +1,27 @@
+#!/bin/bash
+os=`uname -s`
+if [ "$os" = "Darwin" ]; then	#Mac OSX
+	purify="sync && sudo purge"
+	blk=`stat -f %k .`
+	sync="sync"
+else	#Ubuntu
+	purify="sudo sh -c 'echo 3 >/proc/sys/vm/drop_caches'"
+	blk=`sudo blockdev --getbsz /dev/sda1`
+	sync="fsync"
+fi
+eval $purify
+dd if=/dev/zero of=file0 count=512 bs=4194304 > /dev/null 2>&1 #create temp file using block size = 4MB
+echo "Default block size = $blk bytes"
+let blk=blk/2
+c=0
+while [ $blk -lt 67108865 ];	#64Mb+1
+do
+	eval $purify
+	echo -e "\nCopying with block size = $blk bytes"
+	let n=c+1
+	dd if=file$c of=file$n bs=$blk conv=$sync
+	let blk=blk*2
+	let c=c+1
+done
+#clear
+rm file* 
